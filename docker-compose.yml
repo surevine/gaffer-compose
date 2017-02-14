@@ -1,0 +1,118 @@
+version: '2.1'
+services:
+  hadoop-naming:
+    image: cybermaggedon/hadoop:${HADOOP_TAG}
+    restart: always
+    ports:
+      - 50070:50070
+      - 50075:50075
+      - 50090:50090
+      - 9000:9000
+    environment:
+      - DAEMONS=namenode,datanode,secondarynamenode
+    volumes:
+      - ${VOLUME_DIR}/hadoop-naming:/data
+
+  hadoop-data1:
+    image: cybermaggedon/hadoop:${HADOOP_TAG}
+    restart: always
+    environment:
+     - DAEMONS=datanode
+     - NAMENODE_URI=hdfs://hadoop-naming:9000
+    volumes:
+      - ${VOLUME_DIR}/hadoop-data1:/data
+    depends_on:
+      - hadoop-naming
+
+  hadoop-data2:
+    image: cybermaggedon/hadoop:${HADOOP_TAG}
+    restart: always
+    environment:
+      - DAEMONS=datanode
+      - NAMENODE_URI=hdfs://hadoop-naming:9000
+    volumes:
+      - ${VOLUME_DIR}/hadoop-data2:/data
+    depends_on:
+      - hadoop-naming
+
+  zookeeper1:
+    image: cybermaggedon/zookeeper:${ZOOKEEPER_TAG}
+    restart: always
+    volumes:
+      - ${VOLUME_DIR}/zookeeper1:/data
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - ZOOKEEPER_MYID=1
+
+  zookeeper2:
+    image: cybermaggedon/zookeeper:${ZOOKEEPER_TAG}
+    restart: always
+    volumes:
+      - ${VOLUME_DIR}/zookeeper2:/data
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - ZOOKEEPER_MYID=2
+
+  zookeeper3:
+    image: cybermaggedon/zookeeper:${ZOOKEEPER_TAG}
+    restart: always
+    volumes:
+      - ${VOLUME_DIR}/zookeeper3:/data
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - ZOOKEEPER_MYID=3
+
+  gaffer1:
+    image: gchq/gaffer:${GAFFER_TAG}
+    restart: always
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - HDFS_VOLUMES=hdfs://hadoop-naming:9000/gaffer
+      - NAMENODE_URI=
+      - MY_HOSTNAME=gaffer1
+      - GC_HOSTS=MY_IP
+      - MASTER_HOSTS=MY_IP
+      - SLAVE_HOSTS=MY_IP,gaffer2,gaffer3
+      - MONITOR_HOSTS=MY_IP
+      - TRACER_HOSTS=MY_IP
+      - HOSTNAME=gaffer1
+    ports:
+      - 8080:8080
+    depends_on:
+      - hadoop-data1
+      - hadoop-data2
+      - zookeeper1
+
+  gaffer2:
+    image: gchq/gaffer:${GAFFER_TAG}
+    restart: always
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - HDFS_VOLUMES=hdfs://hadoop-naming:9000/gaffer
+      - NAMENODE_URI=
+      - MY_HOSTNAME=gaffer2
+      - GC_HOSTS=gaffer1
+      - MASTER_HOSTS=gaffer1
+      - SLAVE_HOSTS=gaffer1,MY_IP,gaffer3
+      - MONITOR_HOSTS=gaffer1
+      - TRACER_HOSTS=gaffer1
+      - HOSTNAME=gaffer2
+    ports:
+      - 8081:8080
+
+  gaffer3:
+    image: gchq/gaffer:${GAFFER_TAG}
+    restart: always
+    environment:
+      - ZOOKEEPERS=zookeeper1,zookeeper2,zookeeper3
+      - HDFS_VOLUMES=hdfs://hadoop-naming:9000/gaffer
+      - NAMENODE_URI=
+      - MY_HOSTNAME=gaffer3
+      - GC_HOSTS=gaffer1
+      - MASTER_HOSTS=gaffer1
+      - SLAVE_HOSTS=gaffer1,gaffer2,MY_IP
+      - MONITOR_HOSTS=gaffer1
+      - TRACER_HOSTS=gaffer1
+      - HOSTNAME=gaffer3
+    ports:
+      - 8082:8080
